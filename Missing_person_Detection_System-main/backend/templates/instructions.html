@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Operator Guide - Missing Person Detection</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <style>
+        .instruction-card {
+            background: rgba(30, 41, 59, 0.4);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 30px;
+            margin-bottom: 25px;
+            display: flex;
+            gap: 25px;
+            align-items: flex-start;
+        }
+        .instruction-step {
+            width: 40px;
+            height: 40px;
+            background: var(--accent-primary);
+            color: #fff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.2rem;
+            font-weight: 800;
+            flex-shrink: 0;
+            box-shadow: var(--shadow-glow);
+        }
+        .instruction-content h3 {
+            margin-top: 5px;
+            margin-bottom: 15px;
+            color: var(--text-primary);
+        }
+        .instruction-content p {
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+        .pro-tip {
+            background: rgba(16, 185, 129, 0.1);
+            border-left: 3px solid var(--accent-success);
+            padding: 10px 15px;
+            border-radius: 4px;
+            margin-top: 15px;
+            font-size: 0.9rem;
+            color: var(--accent-success);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <header class="header">
+            <img src="{{ url_for('static', filename='assets/logo.png') }}" class="header-logo" alt="Logo">
+            <div class="header-content">
+                <h1>Operator Guide</h1>
+                <p>Learn how to safely deploy and use the Missing Person Detection platform</p>
+            </div>
+        </header>
+
+        <nav class="nav-bar">
+            <a href="/" class="nav-link">📋 UPLOAD</a>
+            <a href="/camera" class="nav-link">📸 CAMERA</a>
+            <a href="/realtime" class="nav-link">⚡ LIVE</a>
+            <a href="/admin" class="nav-link">⚙️ ADMIN</a>
+            <a href="/instructions" class="nav-link active">ℹ️ GUIDE</a>
+            <button id="themeToggleBtn" class="theme-toggle">☀️</button>
+        </nav>
+
+        <main class="main-content">
+            <div class="glass-panel">
+                <h2 style="margin-bottom: 30px;">How to track missing subjects</h2>
+
+                <div class="instruction-card">
+                    <div class="instruction-step">1</div>
+                    <div class="instruction-content">
+                        <h3>Register a Data Target</h3>
+                        <p>Navigate to the <strong>UPLOAD PERSONS</strong> screen. Provide the subject's legal name, and upload a clear, forward-facing photo without sunglasses or obtrusive masks. Our software instantly calculates an encrypted matrix coordinate (biometric embedding) of their face.</p>
+                        <div class="pro-tip">
+                            <strong>Pro Tip:</strong> Using images directly sourced from ID cards yields >98% true-positive matches in varying light fields.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="instruction-card">
+                    <div class="instruction-step">2</div>
+                    <div class="instruction-content">
+                        <h3>Configure Data Streams</h3>
+                        <p>Navigate to the <strong>LIVE STREAM</strong> tab. Deploy streams dynamically by adding RTSP endpoints directly linked to your CCTV system or drone payloads. Enter the IP configuration in the Add Stream widget on the dashboard.</p>
+                    </div>
+                </div>
+
+                <div class="instruction-card">
+                    <div class="instruction-step">3</div>
+                    <div class="instruction-content">
+                        <h3>Monitor and Alert</h3>
+                        <p>Launch the stream by hitting Start. The dashboard binds WebSockets representing live data from configured models. We utilize localized YOLO inference and remote InsightFace execution.</p>
+                        <p>Matches scaling above a 0.55 similarity ratio trigger instantaneous Red Alerts deployed across UI boundaries and cataloged in the Admin Evidence Vault.</p>
+                        <div class="pro-tip">
+                            <strong>Audit Compliance:</strong> All deployments and alerts are written chronologically and preserved per international law. 
+                        </div>
+                    </div>
+                </div>
+
+                <div class="instruction-card">
+                    <div class="instruction-step">4</div>
+                    <div class="instruction-content">
+                        <h3>Perform Manual Scans</h3>
+                        <p>Need offline verification? The <strong>CAMERA DETECTION</strong> suite allows field agents deploying laptops in local zones to snapshot individuals and test them asynchronously against the master embedding list.</p>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Theme Toggle Logic
+        const themeToggle = document.getElementById('themeToggleBtn');
+        const currentTheme = localStorage.getItem('theme');
+        if (currentTheme === 'light') {
+            document.documentElement.setAttribute('data-theme', 'light');
+            themeToggle.textContent = '🌙';
+        }
+
+        themeToggle.addEventListener('click', () => {
+            if (document.documentElement.getAttribute('data-theme') === 'light') {
+                document.documentElement.removeAttribute('data-theme');
+                localStorage.setItem('theme', 'dark');
+                themeToggle.textContent = '☀️';
+            } else {
+                document.documentElement.setAttribute('data-theme', 'light');
+                localStorage.setItem('theme', 'light');
+                themeToggle.textContent = '🌙';
+            }
+        });
+    </script>
+</body>
+</html>

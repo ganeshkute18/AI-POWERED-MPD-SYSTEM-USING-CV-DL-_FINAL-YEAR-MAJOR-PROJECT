@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Camera Detection - Missing Person Detection</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .nav {
+            padding: 20px;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e9ecef;
+            text-align: center;
+        }
+
+        .nav a {
+            color: #667eea;
+            text-decoration: none;
+            margin: 0 15px;
+            font-weight: 600;
+            padding: 10px 20px;
+            border-radius: 5px;
+            transition: background 0.3s;
+        }
+
+        .nav a:hover {
+            background: #e9ecef;
+        }
+
+        .content {
+            padding: 40px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        @media (max-width: 768px) {
+            .content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        .section h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .video-container {
+            position: relative;
+            width: 100%;
+            background: #000;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        #videoElement {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+
+        .message {
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .message.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .message.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .message.info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .message.show {
+            display: block;
+        }
+
+        .matches-container {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .match-item {
+            background: #f8f9fa;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-radius: 10px;
+            border-left: 5px solid #28a745;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .match-item h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 1.5em;
+        }
+
+        .match-item .confidence {
+            font-size: 1.2em;
+            color: #28a745;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .match-item .details {
+            color: #666;
+            font-size: 0.9em;
+            margin: 5px 0;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+
+        .detection-summary {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: bold;
+            color: #495057;
+        }
+
+        .multiple-persons-alert {
+            background: linear-gradient(135deg, #ff6b6b, #feca57);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            border: 3px solid #ff4757;
+            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+        }
+
+        .multiple-persons-alert h3 {
+            margin: 0 0 15px 0;
+            font-size: 1.4em;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+        }
+
+        .multiple-persons-alert ul {
+            list-style: none;
+            padding: 0;
+            margin: 15px 0 0 0;
+        }
+
+        .multiple-persons-alert li {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 8px 15px;
+            margin: 5px 0;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-indicator.active {
+            background-color: #28a745;
+            box-shadow: 0 0 10px #28a745;
+        }
+
+        .status-indicator.inactive {
+            background-color: #dc3545;
+        }
+
+        .alert-banner {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #ff6b6b, #feca57);
+            color: white;
+            padding: 20px 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(255, 107, 107, 0.4);
+            z-index: 1000;
+            font-size: 1.1em;
+            font-weight: bold;
+            text-align: center;
+            border: 3px solid #ff4757;
+            max-width: 600px;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.5s ease;
+        }
+
+        .alert-banner.show {
+            opacity: 1;
+            visibility: visible;
+            animation: alertPulse 0.5s ease-in-out;
+        }
+
+        @keyframes alertPulse {
+            0% { transform: translateX(-50%) scale(0.9); }
+            50% { transform: translateX(-50%) scale(1.05); }
+            100% { transform: translateX(-50%) scale(1); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📹 Camera Detection</h1>
+            <p>Real-time face detection and matching</p>
+        </div>
+
+        <!-- Alert Banner -->
+        <div id="alertBanner" class="alert-banner"></div>
+
+        <div class="nav">
+            <a href="/">← Back to Upload</a>
+            <a href="/targets">View Stored Persons</a>
+        </div>
+
+        <div class="content">
+            <!-- Camera Section -->
+            <div class="section">
+                <h2>
+                    <span class="status-indicator" id="statusIndicator"></span>
+                    Camera Feed
+                </h2>
+                <div class="video-container">
+                    <video id="videoElement" autoplay playsinline></video>
+                </div>
+                <div class="controls">
+                    <button class="btn btn-success" id="startBtn">Start Camera</button>
+                    <button class="btn" id="captureBtn" disabled>Capture & Detect</button>
+                    <button class="btn btn-danger" id="stopBtn" disabled>Stop Camera</button>
+                </div>
+                <div id="cameraMessage" class="message"></div>
+                <div id="cameraLoading" class="loading">
+                    <div class="spinner"></div>
+                    <p>Processing image...</p>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div class="section">
+                <h2>Detection Results</h2>
+                <div id="resultsContainer" class="matches-container">
+                    <div class="empty-state">
+                        Capture an image to detect missing persons
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:5000';
+        let stream = null;
+        let video = document.getElementById('videoElement');
+        let canvas = document.createElement('canvas');
+        let context = canvas.getContext('2d');
+
+        // Initialize video element
+        video.onloadedmetadata = function() {
+            console.log('Video metadata loaded, dimensions:', video.videoWidth, 'x', video.videoHeight);
+        };
+
+        video.oncanplay = function() {
+            console.log('Video can play');
+        };
+
+        video.onerror = function(e) {
+            console.error('Video element error:', e);
+        };
+
+        const startBtn = document.getElementById('startBtn');
+        const captureBtn = document.getElementById('captureBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const statusIndicator = document.getElementById('statusIndicator');
+
+        // Initialize SocketIO connection
+        const socket = io(API_BASE_URL);
+
+        // SocketIO event listeners
+        socket.on('connect', function() {
+            console.log('Connected to server');
+        });
+
+        socket.on('disconnect', function() {
+            console.log('Disconnected from server');
+        });
+
+        socket.on('alert_triggered', function(data) {
+            console.log('Alert triggered:', data);
+            
+            // Show alert banner with sound
+            showAlert(data);
+            
+            // Play alert sound if supported
+            playAlertSound();
+        });
+
+        // Start camera
+        startBtn.addEventListener('click', async function() {
+            try {
+                console.log('Requesting camera access...');
+                
+                // Check if media devices are supported
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    throw new Error('Camera API not supported in this browser');
+                }
+                
+                // Check current permission status if available
+                if (navigator.permissions) {
+                    const permissionStatus = await navigator.permissions.query({ name: 'camera' });
+                    console.log('Camera permission status:', permissionStatus.state);
+                }
+                
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        facingMode: 'user',
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    } 
+                });
+                
+                console.log('Camera access granted, stream tracks:', stream.getVideoTracks().length);
+                
+                // Fallback: try basic video access if the first attempt fails
+                if (stream.getVideoTracks().length === 0) {
+                    console.log('No video tracks, trying fallback...');
+                    stream.getTracks().forEach(track => track.stop());
+                    
+                    stream = await navigator.mediaDevices.getUserMedia({ 
+                        video: true 
+                    });
+                    console.log('Fallback camera access granted');
+                }
+                video.srcObject = stream;
+                
+                startBtn.disabled = true;
+                captureBtn.disabled = false;
+                stopBtn.disabled = false;
+                statusIndicator.classList.add('active');
+                statusIndicator.classList.remove('inactive');
+                showMessage('cameraMessage', 'Camera started successfully', 'success');
+            } catch (error) {
+                console.error('Camera access error:', error);
+                let errorMessage = error.message;
+                
+                // Provide more helpful error messages
+                if (error.name === 'NotAllowedError') {
+                    errorMessage = 'Camera access denied. Please allow camera access and try again.';
+                } else if (error.name === 'NotFoundError') {
+                    errorMessage = 'No camera found. Please connect a camera and try again.';
+                } else if (error.name === 'NotReadableError') {
+                    errorMessage = 'Camera is already in use by another application.';
+                } else if (error.name === 'OverconstrainedError') {
+                    errorMessage = 'Camera does not support the requested resolution.';
+                }
+                
+                showMessage('cameraMessage', `Error accessing camera: ${errorMessage}`, 'error');
+            }
+        });
+
+        // Stop camera
+        stopBtn.addEventListener('click', function() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+                video.srcObject = null;
+                startBtn.disabled = false;
+                captureBtn.disabled = true;
+                stopBtn.disabled = true;
+                statusIndicator.classList.remove('active');
+                statusIndicator.classList.add('inactive');
+                showMessage('cameraMessage', 'Camera stopped', 'info');
+            }
+        });
+
+        // Capture and detect
+        captureBtn.addEventListener('click', async function() {
+            if (!stream) {
+                showMessage('cameraMessage', 'Please start the camera first', 'error');
+                return;
+            }
+
+            const loading = document.getElementById('cameraLoading');
+            const message = document.getElementById('cameraMessage');
+            
+            captureBtn.disabled = true;
+            loading.classList.add('show');
+            message.classList.remove('show');
+
+            try {
+                // Set canvas dimensions to match video
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                
+                // Draw video frame to canvas
+                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                
+                // Convert canvas to blob
+                canvas.toBlob(async function(blob) {
+                    const formData = new FormData();
+                    formData.append('image', blob, 'camera_capture.jpg');
+
+                    try {
+                        const response = await fetch(`${API_BASE_URL}/detect`, {
+                            method: 'POST',
+                            body: formData
+                        });
+
+                        const data = await response.json();
+                        loading.classList.remove('show');
+
+                        if (data.success) {
+                            if (data.matches && data.matches.length > 0) {
+                                displayMatches(data.matches, data.faces_detected || 1);
+                                showMessage('cameraMessage', data.message, 'success');
+                            } else {
+                                displayMatches([], data.faces_detected || 0);
+                                showMessage('cameraMessage', data.message, 'info');
+                            }
+                        } else {
+                            showMessage('cameraMessage', `Error: ${data.error}`, 'error');
+                            displayMatches([], 0);
+                        }
+                    } catch (error) {
+                        loading.classList.remove('show');
+                        showMessage('cameraMessage', `Error: ${error.message}`, 'error');
+                        displayMatches([]);
+                    } finally {
+                        captureBtn.disabled = false;
+                    }
+                }, 'image/jpeg', 0.95);
+            } catch (error) {
+                loading.classList.remove('show');
+                showMessage('cameraMessage', `Error capturing image: ${error.message}`, 'error');
+                captureBtn.disabled = false;
+            }
+        });
+
+        // Display matches
+        function displayMatches(matches, facesDetected = 0) {
+            const container = document.getElementById('resultsContainer');
+            
+            if (matches.length === 0) {
+                if (facesDetected > 0) {
+                    container.innerHTML = `<div class="empty-state">Detected ${facesDetected} face(s) but no matches found in database</div>`;
+                } else {
+                    container.innerHTML = '<div class="empty-state">No faces detected in the image</div>';
+                }
+                return;
+            }
+
+            // Group matches by person name
+            const matchesByPerson = {};
+            matches.forEach(match => {
+                if (!matchesByPerson[match.name]) {
+                    matchesByPerson[match.name] = [];
+                }
+                matchesByPerson[match.name].push(match);
+            });
+
+            const uniquePersons = Object.keys(matchesByPerson);
+            const personCount = uniquePersons.length;
+
+            let html = `<div class="detection-summary">Detected ${facesDetected} face(s), found ${personCount} missing person${personCount > 1 ? 's' : ''}!</div>`;
+            
+            if (personCount > 1) {
+                // Multiple persons found - show consolidated view
+                html += `<div class="multiple-persons-alert">
+                    <h3>🚨 MULTIPLE MISSING PERSONS FOUND 🚨</h3>
+                    <p><strong>${personCount} missing persons detected:</strong></p>
+                    <ul>`;
+                
+                uniquePersons.forEach(personName => {
+                    const personMatches = matchesByPerson[personName];
+                    const bestMatch = personMatches.reduce((best, current) => 
+                        current.similarity > best.similarity ? current : best);
+                    
+                    html += `<li><strong>${escapeHtml(personName)}</strong> - ${bestMatch.confidence} confidence</li>`;
+                });
+                
+                html += `</ul></div>`;
+            }
+
+            // Show individual match details
+            uniquePersons.forEach(personName => {
+                const personMatches = matchesByPerson[personName];
+                const bestMatch = personMatches.reduce((best, current) => 
+                    current.similarity > best.similarity ? current : best);
+                
+                html += `
+                    <div class="match-item">
+                        <h3>${escapeHtml(personName)}</h3>
+                        <div class="confidence">Best Confidence: ${bestMatch.confidence}</div>
+                        <div class="details">
+                            <strong>Similarity Score:</strong> ${(bestMatch.similarity * 100).toFixed(2)}%<br>
+                            <strong>Face Index:</strong> ${bestMatch.face_index !== undefined ? bestMatch.face_index : 'N/A'}<br>
+                            <strong>Added:</strong> ${new Date(bestMatch.created_at).toLocaleString()}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        // Helper function to show messages
+        function showMessage(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `message ${type} show`;
+            setTimeout(() => {
+                element.classList.remove('show');
+            }, 5000);
+        }
+
+        // Helper function to escape HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Initialize status indicator
+        statusIndicator.classList.add('inactive');
+
+        // Show alert function
+        function showAlert(data) {
+            const alertBanner = document.getElementById('alertBanner');
+            
+            if (data.multiple_persons) {
+                // Multiple persons alert
+                const personCount = data.person_count;
+                const personNames = data.person_names;
+                
+                let namesStr;
+                if (personCount === 2) {
+                    namesStr = `${personNames[0]} and ${personNames[1]}`;
+                } else {
+                    namesStr = personNames.slice(0, -1).join(', ') + ` and ${personNames[personNames.length - 1]}`;
+                }
+                
+                alertBanner.innerHTML = `
+                    🚨🚨 <strong>MULTIPLE ALERT:</strong> ${personCount} missing persons found!<br>
+                    <strong>${namesStr}</strong><br>
+                    <small>Time: ${new Date(data.timestamp).toLocaleString()}</small>
+                `;
+                
+                // Show detailed breakdown
+                const detailsHtml = data.persons_found.map(person => 
+                    `<div>• ${person.name}: ${person.confidence}</div>`
+                ).join('');
+                alertBanner.innerHTML += `<div style="margin-top: 10px; font-size: 0.9em;">${detailsHtml}</div>`;
+            } else {
+                // Single person alert
+                alertBanner.innerHTML = `
+                    🚨 <strong>ALERT:</strong> ${escapeHtml(data.person_name)} detected!<br>
+                    <small>Confidence: ${data.confidence} | Time: ${new Date(data.timestamp).toLocaleString()}</small>
+                `;
+            }
+            
+            alertBanner.classList.add('show');
+            
+            // Keep alert visible longer for critical alerts
+            const duration = data.multiple_persons ? 15000 : 10000; // 15s for multiple, 10s for single
+            setTimeout(() => {
+                alertBanner.classList.remove('show');
+            }, duration);
+            
+            // Also show browser notification if permitted
+            if ('Notification' in window && Notification.permission === 'granted') {
+                const notificationTitle = data.multiple_persons ? 
+                    `Multiple Missing Persons Found (${personCount})` : 
+                    `Missing Person Found: ${data.person_name}`;
+                const notificationBody = data.multiple_persons ? 
+                    `${namesStr} detected` : 
+                    `Confidence: ${data.confidence}`;
+                
+                new Notification(notificationTitle, {
+                    body: notificationBody,
+                    icon: '/static/alert-icon.png',
+                    tag: 'missing-person-alert'
+                });
+            }
+        }
+
+        // Play alert sound
+        function playAlertSound() {
+            try {
+                // Create audio context and play alert sound
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+                oscillator.frequency.setValueAtTime(600, audioContext.currentTime + 0.1);
+                oscillator.frequency.setValueAtTime(800, audioContext.currentTime + 0.2);
+                
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.5);
+            } catch (error) {
+                console.log('Could not play alert sound:', error);
+            }
+        }
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+</body>
+</html>

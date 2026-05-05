@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Detection - Missing Person Detection</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <header class="header">
+            <img src="{{ url_for('static', filename='assets/logo.png') }}" class="header-logo" alt="Logo">
+            <div class="header-content">
+                <h1>Live Stream</h1>
+                <p>Live stream monitoring and facial recognition</p>
+            </div>
+        </header>
+
+        <nav class="nav-bar">
+            <a href="/" class="nav-link">📋 UPLOAD</a>
+            <a href="/camera" class="nav-link">📸 CAMERA</a>
+            <a href="/realtime" class="nav-link active">⚡ LIVE</a>
+            <a href="/admin" class="nav-link">⚙️ ADMIN</a>
+            <a href="/instructions" class="nav-link">ℹ️ GUIDE</a>
+            <button id="themeToggleBtn" class="theme-toggle">☀️</button>
+        </nav>
+
+        <div id="alertBanner" class="floating-alert">
+            🚨 MATCH FOUND! Check the matches section below.
+        </div>
+
+        <main class="main-content">
+            <div style="display: grid; grid-template-columns: 2fr 1.2fr; gap: 30px; align-items: start;">
+                <!-- Column 1: Video and Stats -->
+                <div style="position: sticky; top: 20px; z-index: 50;">
+                    <div class="video-wrapper" style="margin-bottom: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.6);">
+                        <img id="videoStream" src="" alt="Video Stream" style="display: none;">
+                        <div class="empty-state" id="videoPlaceholder">
+                            Start stream to see live video feed
+                        </div>
+                    </div>
+
+                    <div class="stats-grid">
+                        <div class="stat-box">
+                            <div class="stat-value highlight" id="totalMatches">0</div>
+                            <div class="stat-label">Matches</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-value" id="storedPersons">0</div>
+                            <div class="stat-label">Persons</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-value" id="streamFps">0</div>
+                            <div class="stat-label">FPS</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-value" id="streamHealth">—</div>
+                            <div class="stat-label">Status</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Column 2: Controls and Matches -->
+                <div style="display: flex; flex-direction: column; gap: 20px;">
+                    <div class="glass-panel">
+                        <div class="form-group">
+                            <label>Camera / Stream Source</label>
+                            <select id="cameraSource" class="form-control">
+                                <option value="_loading">Loading cameras...</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="customUrlGroup" style="display: none;">
+                            <label>Stream URL (RTSP / HTTP)</label>
+                            <input type="text" id="customStreamUrl" class="form-control" placeholder="rtsp://... or http://...">
+                        </div>
+                        <div class="form-group">
+                            <label>Detection Model</label>
+                            <select id="detectionModel" class="form-control">
+                                <option value="opencv">Fast (OpenCV) – webcam</option>
+                                <option value="retinaface">Robust (RetinaFace) – CCTV / Drone</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="padding: 10px 0;">
+                            <label>Status: <span class="status-dot inactive" id="statusIndicator"></span><span id="statusText" style="color:#fff;">Inactive</span></label>
+                        </div>
+                        
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn btn-success" id="startBtn" style="flex: 1;">▶ Start</button>
+                            <button class="btn btn-danger" id="stopBtn" disabled style="flex: 1;">⏹ Stop</button>
+                            <button class="btn btn-outline" id="reloadBtn" style="flex: 1;">🔄 Reload Models</button>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel">
+                        <h2>➕ Add Stream</h2>
+                        <div class="form-group">
+                            <label>Stream Name</label>
+                            <input type="text" id="newStreamName" class="form-control" placeholder="e.g. Entrance CCTV">
+                        </div>
+                        <div class="form-group">
+                            <label>Stream URL</label>
+                            <input type="text" id="newStreamUrl" class="form-control" placeholder="rtsp://user:pass@ip:554/stream">
+                        </div>
+                        <div class="form-group">
+                            <label>Type</label>
+                            <select id="newStreamType" class="form-control">
+                                <option value="cctv">CCTV</option>
+                                <option value="drone">Drone</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-outline btn-block" id="addStreamBtn">Add Stream</button>
+                    </div>
+                    <div class="glass-panel" style="min-height: 400px; display: flex; flex-direction: column;">
+                        <h2>🎯 Detections</h2>
+                        <div id="matchesContainer" style="flex: 1; overflow-y: auto;">
+                            <div class="empty-state">No matches yet. Start detection to begin monitoring.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- SCRIPT (Original logic unaltered) -->
+    <script>
+        // Theme Toggle Logic
+        const themeToggle = document.getElementById('themeToggleBtn');
+        const currentTheme = localStorage.getItem('theme');
+        if (currentTheme === 'light') {
+            document.documentElement.setAttribute('data-theme', 'light');
+            themeToggle.textContent = '🌙';
+        }
+
+        themeToggle.addEventListener('click', () => {
+            if (document.documentElement.getAttribute('data-theme') === 'light') {
+                document.documentElement.removeAttribute('data-theme');
+                localStorage.setItem('theme', 'dark');
+                themeToggle.textContent = '☀️';
+            } else {
+                document.documentElement.setAttribute('data-theme', 'light');
+                localStorage.setItem('theme', 'light');
+                themeToggle.textContent = '🌙';
+            }
+        });
+
+const API_BASE_URL = window.location.origin;
+let socket = null;
+
+// prevent alert/match spam in UI from per-frame repeats
+const matchNotificationCooldown = 10 * 1000; // ms
+const alertNotificationCooldown = 15 * 1000; // ms
+const matchDisplayedAt = {};
+const alertDisplayedAt = {};
+
+// per-person alert burst limiter (max 5 per window)
+const alertBurstWindowMs = 60 * 1000; // 1 minute
+const alertBurstMax = 5;
+const alertBurstStats = {}; // name -> {count, windowStart}
+
+// active displayed detection cards for bounding-box status
+const activeMatchCards = {};
+
+function initSocket() {
+
+    socket = io(API_BASE_URL, {
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionAttempts: 10,
+        reconnectionDelay: 1000
+    });
+
+    socket.on('connect', function () {
+        console.log("SOCKET CONNECTED");
+        updateStatus('Connected', true);
+    });
+
+    socket.on('disconnect', function () {
+        console.log("SOCKET DISCONNECTED");
+        updateStatus('Disconnected', false);
+    });
+
+    socket.on('frame_update', function (data) {
+        const img = document.getElementById('videoStream');
+        img.src = 'data:image/jpeg;base64,' + data.frame;
+        img.style.display = 'block';
+        document.getElementById('videoPlaceholder').style.display = 'none';
+        document.getElementById('streamFps').textContent = (data.fps || 0).toFixed(1);
+    });
+
+    socket.on('match_found', function(data){
+        console.log("MATCH RECEIVED", data);
+
+        if (!data.matches || data.matches.length === 0) return;
+
+        const now = Date.now();
+        const filteredMatches = data.matches.filter(match => {
+            const key = match.name || 'unknown';
+            const lastAt = matchDisplayedAt[key] || 0;
+            if (now - lastAt >= matchNotificationCooldown) {
+                matchDisplayedAt[key] = now;
+                return true;
+            }
+            return false;
+        });
+
+        if (filteredMatches.length === 0) return;
+
+        // Update match counter
+        let currentCount = parseInt(document.getElementById('totalMatches').textContent) || 0;
+        currentCount += filteredMatches.length;
+        document.getElementById('totalMatches').textContent = currentCount;
+
+        // Add matches to display
+        addMatch(filteredMatches, data.timestamp);
+        playAlertSound();
+    });
+
+    socket.on('alert_triggered', function(data){
+        console.log("ALERT TRIGGERED", data);
+
+        const now = Date.now();
+        const person = data.person_name || 'unknown';
+
+        // burst limit per-person
+        const stats = alertBurstStats[person] || {count: 0, windowStart: now};
+        if (now - stats.windowStart > alertBurstWindowMs) {
+            stats.count = 0;
+            stats.windowStart = now;
+        }
+
+        if (stats.count >= alertBurstMax) {
+            return;
+        }
+
+        stats.count += 1;
+        alertBurstStats[person] = stats;
+
+        const lastAlertAt = alertDisplayedAt[person] || 0;
+        if (now - lastAlertAt < alertNotificationCooldown) {
+            return;
+        }
+        alertDisplayedAt[person] = now;
+
+        // Show alert banner and sound
+        showAlert(data);
+        playAlertSound();
+
+        if (data.person_name) {
+            const container = document.getElementById('matchesContainer');
+            
+            if (container.querySelector('.empty-state')) {
+                container.innerHTML = '';
+            }
+
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'match-item alert-type';
+            alertDiv.innerHTML = `
+                <h3>🚨 ${escapeHtml(data.person_name)}</h3>
+                <div class="match-conf">Alert: ${data.confidence}</div>
+                <div class="match-details">
+                    <strong>Status:</strong> Match Found<br>
+                    <strong>Camera:</strong> ${escapeHtml(data.camera_source || 'unknown')}<br>
+                    <strong>Time:</strong> ${new Date(data.timestamp).toLocaleString()}<br>
+                    <strong>Message:</strong> ${escapeHtml(data.message || '')}
+                </div>
+            `;
+            container.insertBefore(alertDiv, container.firstChild);
+        }
+    });
+}
+
+        // Update status indicator
+        function updateStatus(text, isActive) {
+            const indicator = document.getElementById('statusIndicator');
+            const statusText = document.getElementById('statusText');
+            statusText.textContent = text;
+            if (isActive) {
+                indicator.classList.add('active');
+                indicator.classList.remove('inactive', 'recording');
+            } else {
+                indicator.classList.remove('active', 'recording');
+                indicator.classList.add('inactive');
+            }
+        }
+
+        // Add match to display
+        function addMatch(matches, timestamp) {
+            const container = document.getElementById('matchesContainer');
+            
+            if (container.querySelector('.empty-state')) {
+                container.innerHTML = '';
+            }
+
+            matches.forEach(match => {
+            const person = match.name || 'unknown';
+            let matchDiv = activeMatchCards[person];
+
+            if (matchDiv) {
+                const confidenceDiv = matchDiv.querySelector('.match-conf');
+                const detailsDiv = matchDiv.querySelector('.match-details');
+                confidenceDiv.textContent = `Confidence: ${match.confidence}`;
+                detailsDiv.innerHTML = `
+                    <strong>Similarity:</strong> ${(match.similarity * 100).toFixed(2)}%<br>
+                    <strong>Faces Detected:</strong> ${match.faces_detected || 'N/A'}<br>
+                    <strong>Detected:</strong> ${new Date(timestamp).toLocaleString()}
+                `;
+            } else {
+                matchDiv = document.createElement('div');
+                matchDiv.className = 'match-item';
+                matchDiv.innerHTML = `
+                    <h3>${escapeHtml(person)}</h3>
+                    <div class="match-conf">Confidence: ${match.confidence}</div>
+                    <div class="match-details">
+                        <strong>Similarity:</strong> ${(match.similarity * 100).toFixed(2)}%<br>
+                        <strong>Faces Detected:</strong> ${match.faces_detected || 'N/A'}<br>
+                        <strong>Detected:</strong> ${new Date(timestamp).toLocaleString()}
+                    </div>
+                `;
+                container.insertBefore(matchDiv, container.firstChild);
+                activeMatchCards[person] = matchDiv;
+
+                const cards = container.querySelectorAll('.match-item');
+                if (cards.length > 8) {
+                    cards[cards.length - 1].remove();
+                }
+            }
+        });
+        }
+
+        // Show alert with enhanced visibility and instant flash
+        function showAlert(data) {
+            const alertBanner = document.getElementById('alertBanner');
+            const personName = (data && data.person_name) ? data.person_name : 'Unknown';
+            const confidence = (data && data.confidence) ? data.confidence : 'N/A';
+            const ts = (data && data.timestamp) ? new Date(data.timestamp).toLocaleString() : new Date().toLocaleString();
+            alertBanner.innerHTML = `
+                🚨 <strong>ALERT:</strong> ${escapeHtml(personName)} detected! &nbsp; <small>Confidence: ${confidence}</small>
+            `;
+            alertBanner.classList.add('show');
+            setTimeout(function() { alertBanner.classList.remove('show'); }, 6000);
+            
+            if ('Notification' in window && Notification.permission === 'granted') {
+                try {
+                    new Notification('Missing Person Alert', {
+                        body: personName + ' detected with ' + confidence + ' confidence',
+                        icon: '/static/alert-icon.png'
+                    });
+                } catch (e) {}
+            }
+        }
+
+        // Play alert sound
+        function playAlertSound() {
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+                oscillator.frequency.setValueAtTime(600, audioContext.currentTime + 0.1);
+                
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.5);
+            } catch (e) {
+                console.log('Alert sound played');
+            }
+        }
+
+        // Start detection
+        document.getElementById('startBtn').addEventListener('click', async function() {
+            const sourceSelect = document.getElementById('cameraSource');
+            const customUrl = document.getElementById('customStreamUrl').value.trim();
+            let source = sourceSelect.value;
+            const cameraName = sourceSelect.selectedOptions[0] ? sourceSelect.selectedOptions[0].dataset.name || sourceSelect.selectedOptions[0].textContent : String(source);
+
+            if (source === '_custom') {
+                if (!customUrl) {
+                    alert('Please enter stream URL (RTSP or HTTP).');
+                    return;
+                }
+                source = customUrl;
+            } else if (/^\d+$/.test(String(source))) {
+                source = parseInt(source, 10);
+            }
+
+            const detectionBackend = document.getElementById('detectionModel').value;
+            
+            const btn = this;
+            btn.disabled = true;
+            updateStatus('Initializing...', true);
+            
+            document.getElementById('totalMatches').textContent = '0';
+            document.getElementById('matchesContainer').innerHTML = '<div class="empty-state">Waiting for detections...</div>';
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/stream/start`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        source: source,
+                        camera_name: cameraName,
+                        detection_backend: detectionBackend
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    updateStatus('Connected & Processing', true);
+                    const ind = document.getElementById('statusIndicator');
+                    ind.classList.remove('active');
+                    ind.classList.add('recording');
+                    
+                    document.getElementById('startBtn').disabled = true;
+                    document.getElementById('stopBtn').disabled = false;
+                } else {
+                    const errorMsg = data.error || 'Failed to start stream';
+                    const detailedMsg = data.details ? `${errorMsg}\n\nDetails: ${data.details}` : errorMsg;
+                    updateStatus('Error', false);
+                    alert(`Camera Error:\n${detailedMsg}`);
+                    btn.disabled = false;
+                    document.getElementById('totalMatches').textContent = '0';
+                    document.getElementById('matchesContainer').innerHTML = '<div class="empty-state">No matches yet. Start detection to begin monitoring.</div>';
+                }
+            } catch (error) {
+                updateStatus('Connection Failed', false);
+                alert(`Connection Error:\n${error.message}`);
+                btn.disabled = false;
+                document.getElementById('totalMatches').textContent = '0';
+                document.getElementById('matchesContainer').innerHTML = '<div class="empty-state">No matches yet. Start detection to begin monitoring.</div>';
+            }
+        });
+
+        // Stop detection
+        document.getElementById('stopBtn').addEventListener('click', async function() {
+            const btn = this;
+            btn.disabled = true;
+            updateStatus('Stopping...', false);
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/stream/stop`, {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    updateStatus('Stopped', false);
+                    document.getElementById('startBtn').disabled = false;
+                    document.getElementById('stopBtn').disabled = true;
+                    document.getElementById('videoStream').style.display = 'none';
+                    document.getElementById('videoPlaceholder').style.display = 'block';
+                    
+                    document.getElementById('totalMatches').textContent = '0';
+                    document.getElementById('matchesContainer').innerHTML = '<div class="empty-state">No matches yet. Start detection to begin monitoring.</div>';
+                } else {
+                    updateStatus(`Error stopping`, false);
+                    btn.disabled = false;
+                }
+            } catch (error) {
+                updateStatus('Stop failed', false);
+                btn.disabled = false;
+            }
+        });
+
+
+        // Reload embeddings
+        document.getElementById('reloadBtn').addEventListener('click', async function() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/stream/reload`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                if (data.success) {
+                    alert('Reloaded ' + data.message);
+                    updateStats();
+                }
+            } catch (error) {
+                alert('Error reloading: ' + error.message);
+            }
+        });
+
+        // Update stats
+        async function updateStats() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/stream/status`);
+                const data = await response.json();
+                if (data.success) {
+                    document.getElementById('storedPersons').textContent = data.stored_persons || 0;
+                    document.getElementById('streamFps').textContent = data.fps || 0;
+                    document.getElementById('streamHealth').textContent = (data.health_status || 'unknown').toString();
+                }
+            } catch (error) {
+                console.error('Error updating stats:', error);
+            }
+        }
+
+        // Camera source change
+        document.getElementById('cameraSource').addEventListener('change', function() {
+            const customGroup = document.getElementById('customUrlGroup');
+            if (this.value === '_custom') {
+                customGroup.style.display = 'block';
+            } else {
+                customGroup.style.display = 'none';
+            }
+        });
+
+        // Load cameras
+        async function loadCameras() {
+            const select = document.getElementById('cameraSource');
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/cameras`);
+                const data = await response.json();
+                if (!data.success) throw new Error(data.error || 'Failed to load cameras');
+                select.innerHTML = '';
+                (data.cameras || []).forEach(cam => {
+                    const opt = document.createElement('option');
+                    opt.value = typeof cam.source === 'number' ? cam.source : cam.source || '';
+                    opt.textContent = `${cam.name} (${cam.type})`;
+                    opt.dataset.name = cam.name;
+                    select.appendChild(opt);
+                });
+                const customOpt = document.createElement('option');
+                customOpt.value = '_custom';
+                customOpt.textContent = 'Custom URL (CCTV / Drone)';
+                select.appendChild(customOpt);
+            } catch (e) {
+                select.innerHTML = '<option value="0">Default Webcam (0)</option><option value="_custom">Custom URL</option>';
+            }
+        }
+
+        // Add Stream
+        document.getElementById('addStreamBtn').addEventListener('click', async function() {
+            const name = document.getElementById('newStreamName').value.trim();
+            const url = document.getElementById('newStreamUrl').value.trim();
+            const type = document.getElementById('newStreamType').value;
+            if (!name || !url) {
+                alert('Please enter name and stream URL.');
+                return;
+            }
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/cameras/save`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, source: url, type })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    alert('Stream added. Refreshing list.');
+                    document.getElementById('newStreamName').value = '';
+                    document.getElementById('newStreamUrl').value = '';
+                    loadCameras();
+                } else {
+                    alert('Error: ' + (data.error || 'Failed to add stream'));
+                }
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        });
+
+        function requestNotificationPermission() {
+            if ('Notification' in window && Notification.permission === 'default') {
+                Notification.requestPermission();
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Initialize
+        initSocket();
+        updateStatus('Ready', false);
+        loadCameras();
+        updateStats();
+        requestNotificationPermission();
+        setInterval(updateStats, 10000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  missing-person-detector:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: missing-person-detector:gpu-v1.0
+    container_name: missing-person-detector
+    
+    # GPU Support
+    runtime: nvidia
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    
+    # Network
+    ports:
+      - "5001:5001"
+    
+    # Volumes (persistent data)
+    volumes:
+      - ./uploads:/app/uploads
+      - ./snapshots:/app/snapshots
+      - ./evidence:/app/evidence
+      - ./alerts:/app/alerts
+      - ./stored_embeddings.json:/app/stored_embeddings.json
+    
+    # Environment
+    environment:
+      - FLASK_ENV=production
+      - DEBUG=False
+      - PYTHONUNBUFFERED=1
+    
+    # Auto-restart
+    restart: unless-stopped
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "10"

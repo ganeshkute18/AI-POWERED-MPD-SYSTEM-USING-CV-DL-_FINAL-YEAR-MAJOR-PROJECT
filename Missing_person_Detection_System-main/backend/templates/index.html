@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Missing Person Detection - Law Enforcement</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+</head>
+<body>
+    <div class="app-container">
+        <header class="header">
+            <img src="{{ url_for('static', filename='assets/logo.png') }}" class="header-logo" alt="Logo">
+            <div class="header-content">
+                <h1>Missing Person Detection</h1>
+                <p>Advanced facial recognition tracking and case management</p>
+            </div>
+        </header>
+
+        <nav class="nav-bar">
+            <a href="/" class="nav-link active">📋 UPLOAD</a>
+            <a href="/camera" class="nav-link">📸 CAMERA</a>
+            <a href="/realtime" class="nav-link">⚡ LIVE</a>
+            <a href="/admin" class="nav-link">⚙️ ADMIN</a>
+            <a href="/instructions" class="nav-link">ℹ️ GUIDE</a>
+            <button id="themeToggleBtn" class="theme-toggle">☀️</button>
+        </nav>
+
+        <main class="main-content">
+            <div class="grid-2">
+                <!-- Upload Section -->
+                <div class="glass-panel">
+                    <h2>📋 Add Missing Person</h2>
+                    <form id="uploadForm">
+                        <div class="form-group">
+                            <label for="personName">Person Name *</label>
+                            <input type="text" id="personName" name="name" required 
+                                   class="form-control" placeholder="Enter full name">
+                        </div>
+                        <div class="form-group">
+                            <label for="personImage">Person Image *</label>
+                            <input type="file" id="personImage" name="image" accept="image/*" required class="form-control">
+                            <img id="imagePreview" class="preview-img" alt="Preview">
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-block" id="submitBtn">📤 Upload & Process</button>
+                    </form>
+                    <div id="uploadMessage" class="message-box"></div>
+                    <div id="uploadLoading" class="loading-container">
+                        <div class="spinner"></div>
+                        <p>Processing image and computing facial embedding...</p>
+                    </div>
+                </div>
+
+                <!-- Targets List Section -->
+                <div class="glass-panel">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h2 style="margin-bottom: 0; border: none; padding: 0;">📂 Stored Missing Persons</h2>
+                        <button class="btn btn-outline" id="refreshBtn">🔄 Refresh</button>
+                    </div>
+                    
+                    <div id="targetsList" class="grid-auto">
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Theme Toggle Logic
+        const themeToggle = document.getElementById('themeToggleBtn');
+        const currentTheme = localStorage.getItem('theme');
+        if (currentTheme === 'light') {
+            document.documentElement.setAttribute('data-theme', 'light');
+            themeToggle.textContent = '🌙';
+        }
+
+        themeToggle.addEventListener('click', () => {
+            if (document.documentElement.getAttribute('data-theme') === 'light') {
+                document.documentElement.removeAttribute('data-theme');
+                localStorage.setItem('theme', 'dark');
+                themeToggle.textContent = '☀️';
+            } else {
+                document.documentElement.setAttribute('data-theme', 'light');
+                localStorage.setItem('theme', 'light');
+                themeToggle.textContent = '🌙';
+            }
+        });
+
+        // Note: Using relative path as app is served from the same domain
+        const API_BASE_URL = window.location.origin;
+
+        // Image preview
+        document.getElementById('personImage').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            const preview = document.getElementById('imagePreview');
+            
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.src = e.target.result;
+                    preview.classList.add('show');
+                };
+                reader.readAsDataURL(file);
+            } else {
+                preview.classList.remove('show');
+            }
+        });
+
+        // Upload form submission
+        document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData();
+            const name = document.getElementById('personName').value.trim();
+            const image = document.getElementById('personImage').files[0];
+            
+            if (!name || !image) {
+                showMessage('uploadMessage', 'Please fill in all fields', 'message-error');
+                return;
+            }
+            
+            formData.append('name', name);
+            formData.append('image', image);
+            
+            const submitBtn = document.getElementById('submitBtn');
+            const loading = document.getElementById('uploadLoading');
+            const message = document.getElementById('uploadMessage');
+            
+            submitBtn.disabled = true;
+            loading.classList.add('show');
+            message.classList.remove('show');
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/target_person`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showMessage('uploadMessage', `✓ SUCCESS: ${data.message || 'Missing person added to database!'}`, 'message-success');
+                    document.getElementById('uploadForm').reset();
+                    document.getElementById('imagePreview').classList.remove('show');
+                    loadTargets(); // Refresh the list
+                } else {
+                    showMessage('uploadMessage', `✗ ERROR: ${data.error || 'Failed to add missing person'}`, 'message-error');
+                }
+            } catch (error) {
+                showMessage('uploadMessage', `✗ ERROR: ${error.message}`, 'message-error');
+            } finally {
+                submitBtn.disabled = false;
+                loading.classList.remove('show');
+            }
+        });
+
+        // Load targets
+        async function loadTargets() {
+            const targetsList = document.getElementById('targetsList');
+            
+            targetsList.innerHTML = `
+                <div class="loading-container show" id="targetsLoading">
+                    <div class="spinner"></div>
+                    <p>Loading records...</p>
+                </div>
+            `;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/targets`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    if (data.targets && data.targets.length > 0) {
+                        targetsList.innerHTML = data.targets.map((target, index) => `
+                            <div class="target-card">
+                                <div class="badge badge-blue">CASE #${index + 1}</div>
+                                <h3>${escapeHtml(target.name)}</h3>
+                                <p><strong>Registered:</strong><br/> ${target.created_at ? new Date(target.created_at).toLocaleString() : 'N/A'}</p>
+                                <p style="margin-top: auto; padding-top: 15px;">
+                                    <button class="btn btn-danger btn-block" onclick="removePerson('${escapeHtml(target.name).replace(/'/g, "\\'")}')">🗑️ Remove Record</button>
+                                </p>
+                            </div>
+                        `).join('');
+                    } else {
+                        targetsList.innerHTML = '<div class="empty-state">📭 No missing persons in database. Add records to begin monitoring.</div>';
+                    }
+                } else {
+                    targetsList.innerHTML = `<div class="empty-state">Error: ${data.error || 'Failed to load records'}</div>`;
+                }
+            } catch (error) {
+                loading.classList.remove('show');
+                targetsList.innerHTML = `<div class="empty-state">Network error: ${error.message}</div>`;
+            }
+        }
+
+        // Remove person function
+        async function removePerson(personName) {
+            if (!confirm(`Are you sure you want to permanently remove "${personName}" from the database? This action cannot be undone.`)) {
+                return;
+            }
+            
+            try {
+                const encodedName = encodeURIComponent(personName);
+                const response = await fetch(`${API_BASE_URL}/target_person/${encodedName}`, {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showMessage('uploadMessage', `✓ SUCCESS: ${data.message}`, 'message-success');
+                    loadTargets(); // Refresh the list
+                } else {
+                    showMessage('uploadMessage', `✗ ERROR: ${data.error || 'Failed to remove person'}`, 'message-error');
+                }
+            } catch (error) {
+                showMessage('uploadMessage', `✗ ERROR: ${error.message}`, 'message-error');
+            }
+        }
+
+        // Refresh button
+        document.getElementById('refreshBtn').addEventListener('click', loadTargets);
+
+        // Helper function to show messages
+        function showMessage(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            // Provide explicit background colors based on type, overriden using CSS classes
+            element.className = `message-box ${type} show`;
+            setTimeout(() => {
+                element.classList.remove('show');
+            }, 6000);
+        }
+
+        // Helper function to escape HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Load targets on page load
+        loadTargets();
+    </script>
+</body>
+</html>
