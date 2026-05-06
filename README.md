@@ -331,6 +331,10 @@ docker run -p 5000:5000 missing-person-detection:latest
 # 👨‍💻 Developed By
 
 ## Ganesh Kute
+##Atharva Jaybhaye
+##Gaurav Nandy
+GUIDE:Prof.Viddulata Patil
+
 
 B.Tech CSE (AI & Edge Computing)
 
