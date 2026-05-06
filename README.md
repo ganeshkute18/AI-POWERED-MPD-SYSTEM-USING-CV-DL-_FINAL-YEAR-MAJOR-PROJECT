@@ -382,7 +382,3 @@ https://github.com/ganeshkute18
 <p align="center">
   <b>🚀 AI + Computer Vision for Social Impact 🚀</b>
 </p>
-
-README quality and documentation structure are important for GitHub project visibility and developer understanding. ([arXiv][1])
-
-[1]: https://arxiv.org/abs/1802.06997?utm_source=chatgpt.com "Categorizing the Content of GitHub README Files"
