@@ -1,356 +1,388 @@
-  # Missing Person Detection System
-
-  A Flask-based missing person detection API with real-time camera streaming, missing person registration, alerting, and snapshot capture.
+# 🚨 AI-Powered Missing Person Detection System Using Computer Vision & Deep Learning
 
-  This project uses ArcFace embeddings from InsightFace for face registration and matching, and a YOLO-based realtime detector for live camera streams.
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.10+-blue?style=for-the-badge&logo=python">
+  <img src="https://img.shields.io/badge/Flask-Backend-black?style=for-the-badge&logo=flask">
+  <img src="https://img.shields.io/badge/OpenCV-Computer%20Vision-green?style=for-the-badge&logo=opencv">
+  <img src="https://img.shields.io/badge/YOLO-RealTime%20Detection-red?style=for-the-badge">
+  <img src="https://img.shields.io/badge/ArcFace-Face%20Recognition-orange?style=for-the-badge">
+  <img src="https://img.shields.io/badge/DeepLearning-AI-purple?style=for-the-badge">
+</p>
 
-  ## Features
+<p align="center">
+  <b>Final Year Major Project</b><br>
+  Real-Time Missing Person Detection using AI, CCTV Streams, Face Recognition, and Deep Learning.
+</p>
 
-  - **Register Missing Person**: Upload a person's face image and store normalized ArcFace embeddings.
-  - **List Stored Targets**: Retrieve all registered missing persons and metadata.
-  - **Single Image Detection**: Detect and match a face from an uploaded image.
-  - **Realtime Stream Detection**: Start and stop webcam/RTSP/CCTV streams for live matching.
-  - **Live Dashboard**: Web pages for admin, camera view, realtime monitoring, and instructions.
-  - **Alert System**: Save alert snapshots, log alerts, and emit WebSocket notifications.
-  - **Camera Configuration**: Manage configured cameras in `streams/cameras.json`.
+---
 
-  ## Project Structure
+# 📌 Project Overview
 
-  ```
-  Missing_person_Detection_System-main/
-  ├── backend/
-  │   ├── app.py
-  │   ├── realtime_detector.py
-  │   ├── requirements.txt
-  │   ├── best.pt
-  │   ├── stored_embeddings.json
-  │   ├── uploads/
-  │   ├── snapshots/
-  │   ├── alerts/
-  │   ├── evidence/
-  │   ├── static/
-  │   └── templates/
-  ├── streams/
-  │   └── cameras.json
-  ├── scripts/
-  │   ├── test_upload.py
-  │   └── test_enhanced_system.py
-  ├── README.md
-  └── .gitignore
-  ```
+The **AI-Powered Missing Person Detection System** is an intelligent surveillance and identification platform designed to help authorities and organizations detect missing persons in real-time using:
 
-  ## Installation
+* 🎥 CCTV / Webcam Streams
+* 🧠 Deep Learning Models
+* 👤 Face Recognition
+* ⚡ Real-Time Alerts
+* 📊 Live Monitoring Dashboard
 
-  The recommended setup is a Conda environment, because it is safer for managing CUDA and GPU dependencies.
+The system combines **YOLO-based person detection** with **ArcFace facial embeddings** to identify registered missing persons from live video streams and uploaded images.
 
-  1. Create and activate a Conda environment:
+This project was developed as a **Final Year Major Project** for Computer Science Engineering (AI & Edge Computing). 
 
-  ```bash
-  conda create -n missing_person_detection python=3.10 -y
-  conda activate missing_person_detection
-  ```
+---
 
-  2. Install the core backend requirements inside the Conda environment:
+# ✨ Key Features
 
-  ```bash
-  cd backend
-  pip install -r requirements.txt
-  ```
+## 🔍 Face Registration System
 
-  3. Install GPU-specific runtime packages after the base requirements:
+* Register missing persons with image uploads
+* Generate and store ArcFace embeddings
+* Maintain searchable identity database
 
-  ```bash
-  conda install -c conda-forge cudatoolkit=12.1 cudnn -y
-  # On Windows, install a CUDA-enabled PyTorch build from the PyTorch/NVIDIA channels.
-  conda install -c pytorch -c nvidia pytorch torchvision torchaudio pytorch-cuda=12.6 -y
-  pip install onnxruntime-gpu==1.23.2
-  ```
+## 🎯 AI-Based Face Recognition
 
-  If you prefer pip for PyTorch, use the official PyTorch CUDA index instead:
+* Real-time face matching
+* High-accuracy embedding comparison
+* Multi-person detection support
 
-  ```bash
-  pip install --index-url https://download.pytorch.org/whl/cu121 torch torchvision torchaudio
-  pip install onnxruntime-gpu==1.23.2
-  ```
+## 📹 Live CCTV / Webcam Monitoring
 
-  ### Why this order matters
+* Start & stop realtime camera streams
+* Webcam / RTSP / CCTV support
+* Continuous AI surveillance
 
-  - Install `requirements.txt` first in the Conda environment so the base Python dependencies are satisfied.
-  - Then install GPU runtime packages, which are platform-specific and best managed by Conda.
-  - This avoids mixing incompatible CPU and GPU builds.
+## 🚨 Smart Alert System
 
-  ### CPU vs GPU
+* Automatic detection alerts
+* Snapshot evidence generation
+* Alert logging system
+* WebSocket notifications
 
-  - The project works on CPU, but GPU acceleration is strongly recommended for better realtime performance.
-  - `insightface` is configured to prefer `CUDAExecutionProvider` and fall back to CPU if GPU is unavailable.
-  - `ultralytics` will also run faster with a CUDA-enabled PyTorch installation.
+## 🖥️ Interactive Dashboard
 
-  ## Running the API
+* Admin panel
+* Realtime monitoring dashboard
+* Camera management interface
+* Detection analytics
 
-  1. Start the Flask server:
+## ☁️ Deployment Ready
 
-  ```bash
-  cd backend
-  python app.py
-  ```
+* Docker support
+* GPU acceleration support
+* Cloud deployment compatible
 
-  2. Open the UI or access the API at:
+---
 
-  ```text
-  http://localhost:5000
-  ```
+# 🏗️ System Architecture
 
-  ## Main API Endpoints
-
-  ### Register a Missing Person
-  `POST /target_person`
-
-  Request:
-  - `name`: string
-  - `image`: file upload
-
-  Response:
-  - `success`: true/false
-  - `message`: status message
-  - `name`: registered person name
-  - `total_persons`: current database size
-
-  ### List Registered Targets
-  `GET /targets`
-
-  Response contains:
-  - `success`
-  - `count`
-  - `targets` array of stored persons
-
-  ### Delete a Registered Person
-  `DELETE /target_person/<name>`
-
-  Removes a stored person by name.
-
-  ### Detect Person from Image
-  `POST /detect`
-
-  Request:
-  - `image`: file upload
-
-  Response returns matching persons if found.
-
-  ### Health Check
-  `GET /health`
-
-  Returns API status.
-
-  ### Start Realtime Stream
-  `POST /api/stream/start`
-
-  Request body JSON:
-  - `source`: webcam index or stream URL
-  - `camera_name`: optional camera label
-
-  ### Stop Realtime Stream
-  `POST /api/stream/stop`
-
-  ### Stream Status
-  `GET /api/stream/status`
-
-  ### Reload Embeddings
-  `POST /api/stream/reload`
-
-  ### Alert History
-  `GET /api/alerts/history`
-
-  Optional query params:
-  - `limit`
-  - `person_name`
-
-  ### Snapshot Access
-  `GET /api/snapshots/<filename>`
-
-  ### Camera Management
-  `GET /api/cameras`
-  `POST /api/cameras/save`
-
-  ## Web Interface
-
-  The server also serves frontend pages at:
-  - `/` — main landing page
-  - `/camera` — camera detection page
-  - `/realtime` — realtime dashboard
-  - `/admin` — admin panel
-  - `/instructions` — usage instructions
-
-  ## Supported Image Formats
-
-  - PNG
-  - JPG/JPEG
-  - GIF
-  - BMP
-
-  Maximum upload size: 16MB
-
-  ## Notes
-
-  - Face registration uses InsightFace `/ ArcFace` for embeddings.
-  - Realtime detection uses a YOLO model stored as `backend/best.pt`.
-  - Stored embeddings are kept in `backend/stored_embeddings.json`.
-  - Uploaded images are stored temporarily in `backend/uploads/`.
-  - Alert snapshots are saved in `backend/snapshots/`.
-  - Logs are written under `backend/alerts/alerts.log`.
-  - Camera sources are defined in `streams/cameras.json`.
-
-  ## Using the Test Scripts
-
-  If you want to test the API with scripts, run them from the project root:
-
-  ```bash
-  python scripts/test_upload.py <image_path> "Name"
-  python scripts/test_enhanced_system.py
-  ```
-
-  ## Docker / Containerization
-
-### What is Dockerization?
-
-Dockerization packages your entire application (Python interpreter, dependencies, system libraries, code) into a lightweight container. Benefits include:
-- **Consistency**: Works the same on any machine with Docker installed
-- **Isolation**: Keeps your app and dependencies isolated from the host system
-- **Portability**: Deploy to any cloud provider, server, or local environment
-- **Easy deployment**: One command to run the entire app
-
-### Prerequisites
-
-1. Install Docker: https://docs.docker.com/get-docker/
-2. Verify installation:
-   ```bash
-   docker --version
-   ```
-
-### How to Build and Run
-
-1. Build the Docker image:
-   ```bash
-   cd backend
-   docker build -t missing-person-detection:latest .
-   ```
-
-   This command reads the `Dockerfile`, installs dependencies from `requirements.txt`, and creates a reusable image.
-
-2. Run a container from the image:
-   ```bash
-   docker run -p 5000:5000 missing-person-detection:latest
-   ```
-
-   This starts a container and maps port 5000 (container) to port 5000 (host machine).
-
-3. Access the app:
-   Open `http://localhost:5000` in your browser.
-
-### Docker and File Persistence
-
-By default, files created inside a container (uploads, snapshots, embeddings) are lost when the container stops.
-
-To persist data, mount a local folder:
-
-```bash
-docker run -p 5000:5000 \
-  -v $(pwd)/backend/uploads:/app/uploads \
-  -v $(pwd)/backend/snapshots:/app/snapshots \
-  -v $(pwd)/backend/stored_embeddings.json:/app/stored_embeddings.json \
-  missing-person-detection:latest
+```text
+Camera Feed / CCTV Stream
+            ↓
+      YOLO Detection
+            ↓
+      Face Extraction
+            ↓
+     ArcFace Embedding
+            ↓
+    Embedding Comparison
+            ↓
+     Match Verification
+            ↓
+   Alert + Snapshot + Log
+            ↓
+      Live Dashboard
 ```
 
-This command maps local folders to container paths so data persists on your host machine.
+---
 
-### Docker and GPU Support
+# 🛠️ Tech Stack
 
-GPU support inside Docker requires additional setup:
+| Technology            | Purpose             |
+| --------------------- | ------------------- |
+| Python                | Backend Development |
+| Flask                 | API Server          |
+| OpenCV                | Image Processing    |
+| YOLO                  | Real-Time Detection |
+| InsightFace / ArcFace | Face Recognition    |
+| WebSocket             | Live Alerts         |
+| HTML/CSS/JS           | Frontend            |
+| Docker                | Containerization    |
+| CUDA                  | GPU Acceleration    |
 
-1. Install NVIDIA Docker runtime:
-   ```bash
-   # Ubuntu/Debian
-   distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
-   curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -
-   curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | sudo tee /etc/apt/sources.list.d/nvidia-docker.list
-   sudo apt-get update && sudo apt-get install -y nvidia-docker2
-   ```
+---
 
-2. Use a CUDA-enabled base image. Edit `backend/Dockerfile`:
-   ```dockerfile
-   FROM nvidia/cuda:12.1.0-runtime-ubuntu22.04
-   RUN apt-get update && apt-get install -y \
-       python3.10 python3-pip \
-       libgl1 libglib2.0-0 libsm6 libxrender1 libxext6 libxcb1 \
-       && rm -rf /var/lib/apt/lists/*
-   WORKDIR /app
-   COPY requirements.txt .
-   RUN pip install --no-cache-dir -r requirements.txt
-   COPY . .
-   EXPOSE 5000
-   CMD ["python", "app.py"]
-   ```
-
-3. Run with GPU enabled:
-   ```bash
-   docker run --gpus all -p 5000:5000 missing-person-detection:latest
-   ```
-
-### Understanding the Files
-
-- **`Dockerfile`**: Defines how to build the image (base OS, dependencies, how to start the app)
-- **`.dockerignore`**: Tells Docker what NOT to copy into the image (keeps image size small):
-  - `venv/` — local virtual environments
-  - `__pycache__/` — Python cache
-  - `.git/` — Git metadata
-  - `.env` — local environment files
-
-### Common Docker Commands
+# 📂 Project Structure
 
 ```bash
-# Build image
+Missing_person_Detection_System-main/
+│
+├── backend/
+│   ├── app.py
+│   ├── realtime_detector.py
+│   ├── requirements.txt
+│   ├── best.pt
+│   ├── stored_embeddings.json
+│   ├── uploads/
+│   ├── snapshots/
+│   ├── alerts/
+│   ├── evidence/
+│   ├── static/
+│   └── templates/
+│
+├── streams/
+│   └── cameras.json
+│
+├── scripts/
+│   ├── test_upload.py
+│   └── test_enhanced_system.py
+│
+├── README.md
+└── .gitignore
+```
+
+
+
+---
+
+# ⚙️ Installation Guide
+
+## 1️⃣ Clone Repository
+
+```bash
+git clone https://github.com/ganeshkute18/YOUR-REPOSITORY.git
+cd YOUR-REPOSITORY
+```
+
+---
+
+## 2️⃣ Create Conda Environment
+
+```bash
+conda create -n missing_person_detection python=3.10 -y
+conda activate missing_person_detection
+```
+
+---
+
+## 3️⃣ Install Dependencies
+
+```bash
+cd backend
+pip install -r requirements.txt
+```
+
+---
+
+# 🚀 GPU Setup (Recommended)
+
+## CUDA Installation
+
+```bash
+conda install -c conda-forge cudatoolkit=12.1 cudnn -y
+```
+
+## Install CUDA-enabled PyTorch
+
+```bash
+conda install -c pytorch -c nvidia pytorch torchvision torchaudio pytorch-cuda=12.6 -y
+```
+
+## Install ONNX Runtime GPU
+
+```bash
+pip install onnxruntime-gpu==1.23.2
+```
+
+
+
+---
+
+# ▶️ Running the Project
+
+## Start Backend Server
+
+```bash
+cd backend
+python app.py
+```
+
+---
+
+# 🌐 Access Application
+
+```text
+http://localhost:5000
+```
+
+---
+
+# 📡 API Endpoints
+
+| Endpoint              | Method | Description              |
+| --------------------- | ------ | ------------------------ |
+| `/target_person`      | POST   | Register Missing Person  |
+| `/targets`            | GET    | List Registered Persons  |
+| `/detect`             | POST   | Detect Person from Image |
+| `/api/stream/start`   | POST   | Start Camera Stream      |
+| `/api/stream/stop`    | POST   | Stop Stream              |
+| `/api/stream/status`  | GET    | Stream Status            |
+| `/api/alerts/history` | GET    | Alert History            |
+| `/health`             | GET    | Server Health            |
+
+
+
+---
+
+# 🖥️ Web Pages
+
+| Route           | Description      |
+| --------------- | ---------------- |
+| `/`             | Landing Page     |
+| `/camera`       | Camera Detection |
+| `/realtime`     | Live Monitoring  |
+| `/admin`        | Admin Dashboard  |
+| `/instructions` | User Guide       |
+
+
+
+---
+
+# 📸 Screenshots
+
+## 🏠 Dashboard
+
+*Add dashboard screenshot here*
+
+## 🎥 Live Detection
+
+*Add realtime detection screenshot here*
+
+## 👤 Admin Panel
+
+*Add admin panel screenshot here*
+
+## 🚨 Alert Detection
+
+*Add alert snapshot here*
+
+---
+
+# 🧠 AI Models Used
+
+## 🔹 YOLO
+
+Used for:
+
+* Person detection
+* Real-time object tracking
+* CCTV stream analysis
+
+## 🔹 ArcFace (InsightFace)
+
+Used for:
+
+* Facial embeddings
+* Face recognition
+* Similarity matching
+
+---
+
+# 🐳 Docker Support
+
+## Build Docker Image
+
+```bash
 docker build -t missing-person-detection:latest .
-
-# List images
-docker images
-
-# Run container (foreground)
-docker run -p 5000:5000 missing-person-detection:latest
-
-# Run container (background)
-docker run -d -p 5000:5000 missing-person-detection:latest
-
-# List running containers
-docker ps
-
-# Stop a container
-docker stop <container_id>
-
-# Remove a stopped container
-docker rm <container_id>
-
-# View container logs
-docker logs <container_id>
-
-# Enter a running container shell
-docker exec -it <container_id> /bin/bash
-
-# Remove unused images
-docker image prune
 ```
 
-### Troubleshooting
+## Run Container
 
-**Issue**: Container exits immediately.
-- Check logs: `docker logs <container_id>`
-- Ensure `backend/requirements.txt` and `app.py` are correct
-
-**Issue**: Port already in use.
-- Use a different port: `docker run -p 8000:5000 missing-person-detection:latest`
-- Then access `http://localhost:8000`
-
-**Issue**: GPU not recognized inside container.
-- Verify NVIDIA Docker is installed: `docker run --rm --gpus all nvidia/cuda:12.1.0-runtime nvidia-smi`
-- Ensure your GPU drivers are up to date on the host
+```bash
+docker run -p 5000:5000 missing-person-detection:latest
+```
 
 
 
+---
+
+# 📊 Future Enhancements
+
+* 📡 Drone Feed Integration
+* ☁️ Cloud Deployment
+* 📱 Mobile App Support
+* 🔔 SMS & Email Alerts
+* 🛰️ GPS Tracking Integration
+* 🤖 AI Analytics Dashboard
+* 🧾 Automated Report Generation
+
+---
+
+# 🎯 Project Objectives
+
+* Improve missing person identification speed
+* Enable realtime surveillance monitoring
+* Reduce manual searching efforts
+* Support law enforcement investigations
+* Enhance public safety using AI
+
+---
+
+# 👨‍💻 Developed By
+
+## Ganesh Kute
+
+B.Tech CSE (AI & Edge Computing)
+
+Final Year Major Project
+
+---
+
+# 📜 License
+
+This project is developed for educational and research purposes.
+
+---
+
+# ⭐ Support
+
+If you found this project useful:
+
+* 🌟 Star this repository
+* 🍴 Fork the project
+* 📢 Share with others
+
+---
+
+# 📬 Contact
+
+## GitHub
+
+GitHub
+
+```text
+https://github.com/ganeshkute18
+```
+
+---
+
+# 🔥 Project Highlights
+
+✅ Real-Time AI Detection
+✅ Computer Vision Based
+✅ Deep Learning Integrated
+✅ CCTV Monitoring Support
+✅ Alert & Evidence System
+✅ Final Year Major Project
+✅ Docker & GPU Ready
+✅ Scalable Architecture
+
+---
+
+<p align="center">
+  <b>🚀 AI + Computer Vision for Social Impact 🚀</b>
+</p>
+
+README quality and documentation structure are important for GitHub project visibility and developer understanding. ([arXiv][1])
+
+[1]: https://arxiv.org/abs/1802.06997?utm_source=chatgpt.com "Categorizing the Content of GitHub README Files"
